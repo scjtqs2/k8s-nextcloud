@@ -1,0 +1,177 @@
+image:
+  repository: scjtqs/nextcloud
+  #tag: v24-fpm-alpine
+  tag: v24
+  pullPolicy: Always
+  # pullSecrets:
+  #   - myRegistrKeySecretName
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "X-Forwarded-For"
+    nginx.ingress.kubernetes.io/proxy-body-size: 4G
+    kubernetes.io/tls-acme: "true"
+    cert-manager.io/cluster-issuer: dnspod  # dnspod方式签名证书
+    nginx.ingress.kubernetes.io/server-snippet: |-
+      server_tokens off;
+      proxy_hide_header X-Powered-By;
+
+      rewrite ^/.well-known/webfinger /public.php?service=webfinger last;
+      rewrite ^/.well-known/host-meta /public.php?service=host-meta last;
+      rewrite ^/.well-known/host-meta.json /public.php?service=host-meta-json;
+      location = /.well-known/carddav {
+        return 301 $scheme://$host/remote.php/dav;
+      }
+      location = /.well-known/caldav {
+        return 301 $scheme://$host/remote.php/dav;
+      }
+      location = /robots.txt {
+        allow all;
+        log_not_found off;
+        access_log off;
+      }
+      location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)/ {
+        deny all;
+      }
+      location ~ ^/(?:autotest|occ|issue|indie|db_|console) {
+        deny all;
+      }
+  tls:
+    - secretName: nextcloud-tls
+      hosts:
+        - nc.rpi4b.scjtqs.com            # 填你自己的对外域名,不带端口
+
+nginx:
+  ## You need to set an fpm version of the image for nextcloud if you want to use nginx!
+  enabled: false
+  image:
+    repository: nginx
+    tag: alpine
+    pullPolicy: IfNotPresent
+
+  config:
+    # This generates the default nginx config as per the nextcloud documentation
+    default: true
+    # custom: |-
+    #     worker_processes  1;..
+
+  resources: { }
+
+phpClientHttpsFix:
+  enabled: true
+  protocol: https
+
+nextcloud:
+  host: nc.rpi4b.scjtqs.com
+  username: admin
+  password: admin
+  update: 0
+  # If web server is not binding default port, you can define it
+  #containerPort: 8080
+  datadir: /var/www/html/data
+  mail:
+    enabled: false
+    fromAddress: user
+    domain: domain.com
+    smtp:
+      host: domain.com
+      secure: ssl
+      port: 465
+      authtype: LOGIN
+      name: user
+      password: pass
+  phpConfigs:
+    jit.ini: |-
+      ;开启opcache，关闭则不会执行jit
+      opcache.enable=1
+      ;开启cli模式opcache
+      opcache.enable_cli=1
+      ;开启jit的debug
+      opcache.jit_debug=0
+      ;默认是tracing，也可以function，官方最近值是1255
+      opcache.jit=1255
+      opcache.jit_buffer_size=100M
+  configs:
+    customise.config.php: |-
+      <?php
+      $CONFIG = array (
+          "default_language"=>"zh_CN",
+          "default_locale"=>"zh_Hans_CN",
+          'forwarded_for_headers' => array('HTTP_X_FORWARDED_FOR'),
+          'overwriteprotocol'=> 'https',
+      );
+  strategy:
+    type: Recreate
+    # type: RollingUpdate
+    # rollingUpdate:
+    #   maxSurge: 1
+    #   maxUnavailable: 0
+  extraEnv:
+    - name: TZ
+      value: Asia/Shanghai
+    - name: PHP_MEMORY_LIMIT
+      value: 512M
+    - name: PHP_UPLOAD_LIMIT
+      value: 1G
+    - name: NEXTCLOUD_TRUSTED_DOMAINS
+      value: nextcloud 192.168.50.115 nc.rpi4b.scjtqs.com nc.rpi4b.scjtqs.com:8449 nc.rpi4b.scjtqs.com:8448  # 填写你的所有地址,(第一个nextcloud建议保留,用于cronjob请求),可以带端口,多个参数 空格 隔开
+internalDatabase:
+  enabled: false
+  name: nextcloud
+externalDatabase:
+  enabled: true
+  ## Supported database engines: mysql or postgresql
+  type: mysql
+  ## Database host
+  host: 192.168.50.185
+  ## Database user
+  user: nextcloud
+  ## Database password
+  password: nextcloud
+  ## Database name
+  database: nextcloud
+persistence:
+  # Nextcloud Data (/var/www/html)
+  enabled: true
+  annotations: { }
+  existingClaim: nextcloud-storage
+
+# redis缓存
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: 'nextcloud'
+  global:
+    storageClass: nextcloud-nfs
+  master:
+    persistence:
+      enabled: false  # 如果要开启redis数据持久化（重启pod后不丢失缓存数据），就改成true
+  replica:
+    persistence:
+      enabled: false  # 如果要开启redis数据持久化（重启pod后不丢失缓存数据），就改成true
+
+# 是否启动k8s的pod数量 自动伸缩
+hpa:
+  enabled: false
+  cputhreshold: 60
+  minPods: 1
+  maxPods: 10
+
+# 导出80端口给ingress
+service:
+  type: ClusterIP
+  port: 80
+  loadBalancerIP: nil
+  nodePort: nil
+
+# 80/443 端口被封了就别开了,这里的检测会访问 https://host/status.php 写死了默认端口，还无法改
+livenessProbe:
+  enabled: false
+readinessProbe:
+  enabled: false
+startupProbe:
+  enabled: false
