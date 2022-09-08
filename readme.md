@@ -32,6 +32,7 @@
         + `squash` 无映射
         + `安全性` sys
         + 勾选`启动异步`
+        + 在 `/etc/exports` 中的配置如此： `/volume3/k8s-nextcloud  192.168.50.0/24(rw,async,no_wdelay,no_root_squash,insecure_locks,sec=sys,anonuid=1025,anongid=100)`
 2. 修改`pvc.yaml`，里面总共两部分，一个pv，一个pvc:
     + 修改里面的`storage`字段，为你想要的容量，这里默认1000Gi 也就是 1TB限制。两个部分的`storage`保持一致就行。
     + 修改`PersistentVolume`那段的`server`为你的nfs 服务器地址
