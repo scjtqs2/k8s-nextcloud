@@ -12,7 +12,7 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-headers: "X-Forwarded-For"
-    nginx.ingress.kubernetes.io/proxy-body-size: 4G
+    nginx.ingress.kubernetes.io/proxy-body-size: 10G
     kubernetes.io/tls-acme: "true"
     cert-manager.io/cluster-issuer: dnspod  # dnspod方式签名证书
     nginx.ingress.kubernetes.io/server-snippet: |-
@@ -115,7 +115,7 @@ nextcloud:
     - name: PHP_MEMORY_LIMIT
       value: 512M
     - name: PHP_UPLOAD_LIMIT
-      value: 1G
+      value: 10G
     - name: NEXTCLOUD_TRUSTED_DOMAINS
       value: nextcloud 192.168.50.115 nc.rpi4b.scjtqs.com nc.rpi4b.scjtqs.com:8449 nc.rpi4b.scjtqs.com:8448  # 填写你的所有地址,(第一个nextcloud建议保留,用于cronjob请求),可以带端口,多个参数 空格 隔开
 internalDatabase:
