@@ -67,7 +67,7 @@
 2. 然后可以在namespace为`nextcloud`的环境下查看pod情况
 3. 等待cert-manager的证书签发完成。
 
-## 五、 nextcloud的协助
+## 五、 nextcloud的卸载
 > 如果你想重新安装，需要先进行卸载，然后在进行安装。
 > 
 1. 卸载nextcloud: `bash uninstall.sh`
